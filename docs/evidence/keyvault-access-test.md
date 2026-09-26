@@ -99,3 +99,30 @@ db-password  True
 - **Purge protection disabled.** Lab-only simplification.
 - **Deployed with the operator's user account (Owner)**, not a least-privilege
   pipeline identity. Planned for Project 3 with OIDC.
+
+  ## Audit logging
+
+Key Vault `AuditEvent` logs are sent to the Log Analytics workspace
+`log-securenet-dev-eus-001` through a diagnostic setting. Tests were run
+with `az vm run-command` using `scripts/test-kv-access.sh`, and queried with
+`queries/kv-secret-reads.kql`.
+
+| Time (UTC) | Result | Code | Calling resource | Client |
+|---|---|---|---|---|
+| 2026-09-26 13:46:12 | OK | 200 | `vm-app-securenet-dev-eus-001` | `curl/8.5.0` |
+| 2026-09-26 18:13:13 | Forbidden | 403 | `vm-mgmt-securenet-dev-eus-001` | `curl/8.5.0` |
+
+**Findings**
+
+- Every secret read attempt is recorded with the calling resource
+  (`identity_claim_xms_mirid_s`), the client and the result.
+- `ResultType` is `Success` even for denied requests. Denials must be
+  filtered on `httpStatusCode_d` or `ResultSignature`.
+- `CallerIPAddress` shows the VMs' implicit outbound public IP, not their
+  private IP, because the vault is reached through its public endpoint.
+- Events from the first minutes after the diagnostic setting was created
+  were not recorded: the first application test and the secret creation are
+  missing. Logging has to be enabled together with the resource, never after
+  an incident.
+- Operator actions are logged too: a `VaultGet` by the operator's account
+  appeared with the operator's IP (redacted here).

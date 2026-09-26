@@ -82,6 +82,7 @@ resource "azurerm_subnet" "bastion" {
 }
 
 resource "azurerm_public_ip" "bastion" {
+  count               = var.enable_bastion ? 1 : 0
   name                = "pip-bastion-${local.name_suffix}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -92,6 +93,7 @@ resource "azurerm_public_ip" "bastion" {
 }
 
 resource "azurerm_bastion_host" "main" {
+  count               = var.enable_bastion ? 1 : 0
   name                = "bas-${local.name_suffix}"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
@@ -101,7 +103,7 @@ resource "azurerm_bastion_host" "main" {
   ip_configuration {
     name                 = "configuration"
     subnet_id            = azurerm_subnet.bastion.id
-    public_ip_address_id = azurerm_public_ip.bastion.id
+    public_ip_address_id = azurerm_public_ip.bastion[0].id
   }
 }
 
@@ -224,4 +226,24 @@ resource "azurerm_role_assignment" "operator_kv_secrets_officer" {
   scope                = azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets Officer"
   principal_id         = data.azurerm_client_config.current.object_id
+}
+
+resource "azurerm_log_analytics_workspace" "main" {
+  name                = "log-${local.name_suffix}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+
+  tags = local.common_tags
+}
+
+resource "azurerm_monitor_diagnostic_setting" "kv" {
+  name                       = "diag-${local.name_suffix}"
+  target_resource_id         = azurerm_key_vault.main.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+
+  enabled_log {
+    category = "AuditEvent"
+  }
 }

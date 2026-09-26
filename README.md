@@ -99,6 +99,9 @@ reaches the state file.
 **Verified** ([evidence](docs/evidence/keyvault-access-test.md)): no token →
 401, identity without role → 403 `ForbiddenByRbac`, application identity → 200.
 
+**Audit logging:** every secret read is logged to Log Analytics
+(`AuditEvent`). Query: [`kv-secret-reads.kql`](queries/kv-secret-reads.kql).
+
 ## Continuous integration
 
 Every pull request to `main` runs [`terraform-ci.yml`](.github/workflows/terraform-ci.yml):
@@ -156,6 +159,8 @@ terraform validate
 terraform plan -out=tfplan
 terraform apply tfplan
 ```
+Azure Bastion is disabled by default because it bills hourly. Enable it only
+when interactive access is needed: `terraform apply -var="enable_bastion=true"`.
 
 **Why not the Service Principal:** this configuration creates role
 assignments (`Microsoft.Authorization/roleAssignments/write`). The existing
@@ -209,7 +214,7 @@ terraform destroy
   one with the specific inbound and outbound rules Bastion requires.
 - **The OS image uses `version = "latest"`.** Convenient for a lab; production pins an
   exact image version so deployments stay reproducible.
-- Key Vault diagnostic logs are not enabled yet, so secret reads are not recorded.
+- No alert rule on denied secret access yet: logs are collected, but nobody is notified.
 - Key Vault public network access is enabled. Production would use a private endpoint.
 - Key Vault purge protection is disabled (lab only).
 

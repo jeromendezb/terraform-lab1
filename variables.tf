@@ -74,3 +74,9 @@ variable "ssh_public_key_path" {
   type        = string
   default     = "~/.ssh/securenet_lab.pub"
 }
+
+variable "enable_bastion" {
+  description = "Deploy Azure Bastion. Disabled by default because it bills hourly."
+  type        = bool
+  default     = false
+}
